@@ -1,11 +1,12 @@
 /* eslint-disable class-methods-use-this */
 /* eslint-disable no-restricted-syntax */
-import Client from '../client/Client';
-import Base from '../client/Base';
-import { StatsData, StatsPlaylistTypeData, StatsLevelData } from '../../resources/structs';
-import User from './user/User';
+import Base from '../Base';
 import { createDefaultInputTypeStats, parseStatKey } from '../util/Util';
-import { RawStatsData } from '../../resources/httpResponses';
+import { statsKeyRegex } from '../../resources/constants';
+import type Client from '../Client';
+import type { StatsData, StatsPlaylistTypeData, StatsLevelData } from '../../resources/structs';
+import type User from './user/User';
+import type { RawStatsData } from '../../resources/httpResponses';
 
 /**
  * Represents a user's battle royale stats
@@ -64,54 +65,46 @@ class Stats extends Base {
     };
 
     for (const key of Object.keys(data.stats)) {
-      if (key.startsWith('br')) {
-        const fields = key.split('_');
-        fields.shift();
+      if (statsKeyRegex.test(key)) {
+        const [, statKey, inputType, playlistId]: [string, string, 'keyboardmouse' | 'gamepad' | 'touch', string] = key
+          .match(statsKeyRegex) as any;
 
-        const statKey = fields.shift()!;
+        const playlistType = typeof this.client.config.statsPlaylistTypeParser === 'function'
+          ? this.client.config.statsPlaylistTypeParser(playlistId)
+          : this.getPlaylistStatsType(playlistId);
 
-        if (statKey !== 'collection') {
-          const inputType = fields.shift() as 'keyboardmouse' | 'gamepad' | 'touch';
-          fields.shift();
-          const playlistId = fields.join('_');
+        if (playlistType !== 'other') {
+          const [parsedKey, parsedValue] = parseStatKey(statKey, data.stats[key]);
 
-          const playlistType = typeof this.client.config.statsPlaylistTypeParser === 'function'
-            ? this.client.config.statsPlaylistTypeParser(playlistId)
-            : this.getPlaylistStatsType(playlistId);
+          const inputTypePlaylistStats = this.stats[inputType][playlistType];
+          const inputTypeAllStats = this.stats[inputType].overall;
+          const allPlaylistStats = this.stats.all[playlistType];
+          const allAllStats = this.stats.all.overall;
 
-          if (playlistType !== 'other') {
-            const [parsedKey, parsedValue] = parseStatKey(statKey, data.stats[key]);
-
-            const inputTypePlaylistStats = this.stats[inputType][playlistType];
-            const inputTypeAllStats = this.stats[inputType].overall;
-            const allPlaylistStats = this.stats.all[playlistType];
-            const allAllStats = this.stats.all.overall;
-
-            if (parsedKey === 'lastModified') {
-              if (!inputTypePlaylistStats.lastModified || (parsedValue as Date).getTime() > inputTypePlaylistStats.lastModified.getTime()) {
-                inputTypePlaylistStats.lastModified = (parsedValue as Date);
-              }
-
-              if (!inputTypeAllStats.lastModified || (parsedValue as Date).getTime() > inputTypeAllStats.lastModified.getTime()) {
-                inputTypeAllStats.lastModified = (parsedValue as Date);
-              }
-
-              if (!allPlaylistStats.lastModified || (parsedValue as Date).getTime() > allPlaylistStats.lastModified.getTime()) {
-                allPlaylistStats.lastModified = (parsedValue as Date);
-              }
-
-              if (!allAllStats.lastModified || (parsedValue as Date).getTime() > allAllStats.lastModified.getTime()) {
-                allAllStats.lastModified = (parsedValue as Date);
-              }
-            } else {
-              inputTypePlaylistStats[parsedKey] += parsedValue as number;
-              if (playlistType !== 'ltm') inputTypeAllStats[parsedKey] += parsedValue as number;
-              allPlaylistStats[parsedKey] += parsedValue as number;
-              if (playlistType !== 'ltm') allAllStats[parsedKey] += parsedValue as number;
+          if (parsedKey === 'lastModified') {
+            if (!inputTypePlaylistStats.lastModified || (parsedValue as Date).getTime() > inputTypePlaylistStats.lastModified.getTime()) {
+              inputTypePlaylistStats.lastModified = (parsedValue as Date);
             }
+
+            if (!inputTypeAllStats.lastModified || (parsedValue as Date).getTime() > inputTypeAllStats.lastModified.getTime()) {
+              inputTypeAllStats.lastModified = (parsedValue as Date);
+            }
+
+            if (!allPlaylistStats.lastModified || (parsedValue as Date).getTime() > allPlaylistStats.lastModified.getTime()) {
+              allPlaylistStats.lastModified = (parsedValue as Date);
+            }
+
+            if (!allAllStats.lastModified || (parsedValue as Date).getTime() > allAllStats.lastModified.getTime()) {
+              allAllStats.lastModified = (parsedValue as Date);
+            }
+          } else {
+            inputTypePlaylistStats[parsedKey] += parsedValue as number;
+            if (playlistType !== 'ltm') inputTypeAllStats[parsedKey] += parsedValue as number;
+            allPlaylistStats[parsedKey] += parsedValue as number;
+            if (playlistType !== 'ltm') allAllStats[parsedKey] += parsedValue as number;
           }
         }
-      } else if (key.includes('social_bp_level')) {
+      } else if (/^s\d\d?_social_bp_level$/.test(key)) {
         this.levelData[key.split('_')[0]] = {
           level: Math.round(data.stats[key] / 100),
           progress: data.stats[key] % 100,
@@ -141,7 +134,8 @@ class Stats extends Base {
 
     if (['creative', 'respawn', '16'].some((s) => playlist.includes(s))) return 'other';
 
-    if (!['default', 'classic', 'showdown', 'vamp', 'unvaulted', 'toss', 'fill', 'heavy', 'tank', 'melt'].some((s) => playlist.includes(s))) return 'ltm';
+    if (!['default', 'classic', 'showdown', 'vamp',
+      'unvaulted', 'toss', 'fill', 'heavy', 'tank', 'melt'].some((s) => playlist.includes(s))) return 'ltm';
 
     if (playlist.includes('solo')) return 'solo';
     if (playlist.includes('duo')) return 'duo';

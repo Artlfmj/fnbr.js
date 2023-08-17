@@ -1,5 +1,49 @@
 # Changelog
 
+## 4.0.0
+
+### Additions
+* *WIP*
+
+### Changes
+* Documentation
+  * Updated examples
+
+### Fixes
+* *WIP*
+
+<hr>
+
+## 3.1.6
+
+### Additions
+* Party
+  * Added a `path` property to `ClientPartyMember#setOutfit()`, `ClientPartyMember#setBackpack()`, `ClientPartyMember#setPet()`, `ClientPartyMember#setPickaxe()`, `ClientPartyMember#setEmote()` and `ClientPartyMember#setEmoji()`
+
+### Fixes
+* Endpoints
+  * Updated hosts
+
+<hr>
+
+## 3.1.5
+
+### Fixes
+* Party
+  * Fixed an issue that caused all party members to be invisible if the bot created the party
+
+<hr>
+
+## 3.1.4
+
+### Fixes
+* Stats
+  * Fix an issue that caused `Client#getBRStats()` to throw an error when the user had stats keys that were not parsed properly
+* User Search
+  * Fix an issue that caused `Client#searchProfiles()` to throw an error if a search result could not be resolved
+
+<hr>
+
 ## 3.1.3
 
 ### Fixes
